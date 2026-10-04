@@ -53,4 +53,12 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
         Assert.Contains("\"indicator\":\"population\"", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("\"country\":\"IT\"", body, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public async Task Import_requires_an_api_key()
+    {
+        using var response = await _client.PostAsync("/api/admin/import", content: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 }

@@ -99,6 +99,8 @@ curl -X POST \\
   http://localhost:5000/api/admin/import
 ```
 
+Automatic imports are disabled by default. To enable them in a hosted environment, configure `ImportSchedule__Enabled=true` and optionally set `ImportSchedule__IntervalHours` (default: 24).
+
 Production currently runs on Render and uses Neon PostgreSQL. The production connection string must use Npgsql's key/value format rather than a `postgresql://` URI.
 
 ## Data source

@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using RegionScope.Clients;
 using RegionScope.Data;
 using RegionScope.Services;
+using System.Security.Cryptography;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +18,8 @@ builder.Services.AddHttpClient<EurostatClient>(client =>
     client.DefaultRequestHeaders.UserAgent.ParseAdd("RegionScope/1.0");
 });
 builder.Services.AddScoped<IndicatorImportService>();
+builder.Services.Configure<ImportScheduleOptions>(builder.Configuration.GetSection("ImportSchedule"));
+builder.Services.AddHostedService<IndicatorImportHostedService>();
 
 var app = builder.Build();
 
@@ -72,9 +76,11 @@ app.MapPost("/api/admin/import", async (
     var configuredKey = configuration["Import:ApiKey"];
     if (string.IsNullOrWhiteSpace(configuredKey)
         || !request.Headers.TryGetValue("X-Import-Key", out var providedKey)
-        || providedKey != configuredKey)
+        || !CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(providedKey.ToString()),
+            Encoding.UTF8.GetBytes(configuredKey)))
     {
-        return Results.NotFound();
+        return Results.Unauthorized();
     }
 
     var imported = await importer.ImportAsync(cancellationToken);
