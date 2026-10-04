@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: regionscope-postgres
+    environment:
+      POSTGRES_DB: regionscope
+      POSTGRES_USER: regionscope
+      POSTGRES_PASSWORD: regionscope
+    ports:
+      - "5432:5432"
+    volumes:
+      - regionscope-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U regionscope -d regionscope"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  regionscope-postgres-data:
