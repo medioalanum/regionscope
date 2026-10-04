@@ -8,6 +8,10 @@ public sealed class RegionScopeDbContext(DbContextOptions<RegionScopeDbContext> 
 {
     public DbSet<Country> Countries => Set<Country>();
 
+    public DbSet<Indicator> Indicators => Set<Indicator>();
+
+    public DbSet<Observation> Observations => Set<Observation>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Country>(entity =>
@@ -46,5 +50,33 @@ public sealed class RegionScopeDbContext(DbContextOptions<RegionScopeDbContext> 
             new Country { Code = "SI", Name = "Slovenia", IsEuropeanUnionMember = true },
             new Country { Code = "ES", Name = "Spain", IsEuropeanUnionMember = true },
             new Country { Code = "SE", Name = "Sweden", IsEuropeanUnionMember = true });
+
+        modelBuilder.Entity<Indicator>(entity =>
+        {
+            entity.HasKey(indicator => indicator.Code);
+            entity.Property(indicator => indicator.Code).HasMaxLength(50);
+            entity.Property(indicator => indicator.Name).HasMaxLength(150).IsRequired();
+            entity.Property(indicator => indicator.Unit).HasMaxLength(50).IsRequired();
+        });
+
+        modelBuilder.Entity<Indicator>().HasData(
+            new Indicator { Code = "population", Name = "Population", Unit = "persons" },
+            new Indicator { Code = "gdp_per_capita", Name = "GDP per capita", Unit = "EUR per person" },
+            new Indicator { Code = "unemployment_rate", Name = "Unemployment rate", Unit = "percentage" });
+
+        modelBuilder.Entity<Observation>(entity =>
+        {
+            entity.HasKey(observation => new { observation.CountryCode, observation.IndicatorCode, observation.Year });
+            entity.Property(observation => observation.CountryCode).HasMaxLength(2);
+            entity.Property(observation => observation.IndicatorCode).HasMaxLength(50);
+            entity.Property(observation => observation.Value).HasPrecision(20, 6);
+            entity.Property(observation => observation.Unit).HasMaxLength(50).IsRequired();
+            entity.Property(observation => observation.Source).HasMaxLength(100).IsRequired();
+            entity.HasIndex(observation => new { observation.IndicatorCode, observation.Year });
+            entity.HasOne(observation => observation.Country).WithMany()
+                .HasForeignKey(observation => observation.CountryCode).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(observation => observation.Indicator).WithMany(indicator => indicator.Observations)
+                .HasForeignKey(observation => observation.IndicatorCode).OnDelete(DeleteBehavior.Restrict);
+        });
     }
 }
