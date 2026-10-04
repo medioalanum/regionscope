@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc.Testing;
+using System.Net;
 using Xunit;
 
 namespace RegionScope.Tests;
@@ -30,5 +31,13 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
         using var response = await _client.GetAsync("/ready");
 
         response.EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public async Task Countries_returns_not_found_for_unknown_country()
+    {
+        using var response = await _client.GetAsync("/api/countries/XX");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 }
