@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc.Testing;
+using Xunit;
 
 namespace RegionScope.Tests;
 
@@ -16,8 +17,9 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
     {
         using var response = await _client.GetAsync("/health");
 
-        response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
+
+        Assert.True(response.IsSuccessStatusCode, body);
 
         Assert.Contains("healthy", body, StringComparison.OrdinalIgnoreCase);
     }
