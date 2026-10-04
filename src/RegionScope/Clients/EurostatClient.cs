@@ -29,13 +29,19 @@ public sealed class EurostatClient(HttpClient httpClient, ILogger<EurostatClient
     {
         var ids = root.GetProperty("id").EnumerateArray().Select(item => item.GetString()!).ToArray();
         var sizes = root.GetProperty("size").EnumerateArray().Select(item => item.GetInt32()).ToArray();
-        var values = root.GetProperty("value").EnumerateArray().ToArray();
+        var valueElement = root.GetProperty("value");
+        var values = valueElement.ValueKind == JsonValueKind.Array
+            ? valueElement.EnumerateArray().Select((value, index) => (Index: index, Value: value))
+                .ToDictionary(item => item.Index, item => item.Value)
+            : valueElement.EnumerateObject()
+                .ToDictionary(item => int.Parse(item.Name), item => item.Value);
         var dimensions = ids.Select(id => ReadDimension(root.GetProperty("dimension").GetProperty(id))).ToArray();
         var results = new List<EurostatObservation>();
 
-        for (var flatIndex = 0; flatIndex < values.Length; flatIndex++)
+        var totalSize = sizes.Aggregate(1, (total, size) => total * size);
+        for (var flatIndex = 0; flatIndex < totalSize; flatIndex++)
         {
-            if (values[flatIndex].ValueKind == JsonValueKind.Null)
+            if (!values.TryGetValue(flatIndex, out var value) || value.ValueKind == JsonValueKind.Null)
             {
                 continue;
             }
@@ -56,7 +62,7 @@ public sealed class EurostatClient(HttpClient httpClient, ILogger<EurostatClient
             results.Add(new EurostatObservation(
                 dimensions[geoIndex][coordinates[geoIndex]],
                 year,
-                values[flatIndex].GetDecimal()));
+                value.GetDecimal()));
         }
 
         logger.LogInformation("Parsed {Count} observations from Eurostat", results.Count);
