@@ -81,6 +81,58 @@ app.MapPost("/api/admin/import", async (
     return Results.Ok(new { imported });
 });
 
+app.MapGet("/api/compare", async (
+    HttpRequest request,
+    RegionScopeDbContext db,
+    CancellationToken cancellationToken) =>
+{
+    var indicatorCode = request.Query["indicator"].ToString().ToLowerInvariant();
+    var countryCodes = request.Query["countries"].ToString()
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(code => code.ToUpperInvariant())
+        .Distinct()
+        .ToArray();
+
+    if (string.IsNullOrWhiteSpace(indicatorCode) || countryCodes.Length == 0)
+    {
+        return Results.BadRequest(new { error = "countries and indicator are required" });
+    }
+
+    var validCountryCodes = await db.Countries
+        .Where(country => countryCodes.Contains(country.Code))
+        .Select(country => country.Code)
+        .ToListAsync(cancellationToken);
+    var indicatorExists = await db.Indicators.AnyAsync(item => item.Code == indicatorCode, cancellationToken);
+
+    if (!indicatorExists || validCountryCodes.Count != countryCodes.Length)
+    {
+        return Results.NotFound();
+    }
+
+    var observations = await db.Observations.AsNoTracking()
+        .Where(observation => countryCodes.Contains(observation.CountryCode)
+            && observation.IndicatorCode == indicatorCode)
+        .OrderBy(observation => observation.Year)
+        .ThenBy(observation => observation.CountryCode)
+        .Select(observation => new
+        {
+            country = observation.CountryCode,
+            indicator = observation.IndicatorCode,
+            year = observation.Year,
+            value = observation.Value,
+            unit = observation.Unit,
+            source = observation.Source
+        })
+        .ToListAsync(cancellationToken);
+
+    return Results.Ok(new
+    {
+        indicator = indicatorCode,
+        countries = countryCodes,
+        observations
+    });
+});
+
 app.Run();
 
 public partial class Program;

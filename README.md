@@ -71,6 +71,36 @@ regionscope/
 6. Expose indicator history and country comparison endpoints.
 7. Add tests, Docker support, CI, and deployment documentation.
 
+## Local development
+
+Requirements: .NET 8 SDK and Docker with Compose.
+
+```bash
+docker compose up -d postgres
+dotnet tool restore
+dotnet restore
+dotnet ef database update --project src/RegionScope --startup-project src/RegionScope
+dotnet run --project src/RegionScope
+```
+
+The API runs on the URL shown by ASP.NET Core. Useful endpoints include:
+
+- `GET /health` — process health;
+- `GET /ready` — database readiness;
+- `GET /api/countries` — EU country catalog;
+- `GET /api/countries/IT/indicators/population` — country history;
+- `GET /api/compare?countries=IT,DE,FR&indicator=unemployment_rate` — country comparison.
+
+The Eurostat import endpoint is intentionally disabled unless `Import__ApiKey` is configured. When enabled, run it with:
+
+```bash
+curl -X POST \\
+  -H "X-Import-Key: $IMPORT_API_KEY" \\
+  http://localhost:5000/api/admin/import
+```
+
+Production currently runs on Render and uses Neon PostgreSQL. The production connection string must use Npgsql's key/value format rather than a `postgresql://` URI.
+
 ## Data source
 
 The project will use the [Eurostat Statistics API](https://ec.europa.eu/eurostat/web/main/data/web-services) as its initial data source. Stored observations will include retrieval metadata so that the API can make data provenance and freshness explicit.

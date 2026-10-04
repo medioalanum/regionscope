@@ -40,4 +40,17 @@ public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Pr
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    [Fact]
+    public async Task Compare_returns_observations_for_requested_countries()
+    {
+        using var response = await _client.GetAsync("/api/compare?countries=IT,DE&indicator=population");
+
+        response.EnsureSuccessStatusCode();
+
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Contains("\"indicator\":\"population\"", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("\"country\":\"IT\"", body, StringComparison.OrdinalIgnoreCase);
+    }
 }

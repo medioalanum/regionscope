@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: regionscope
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d regionscope"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore RegionScope.sln
+
+      - name: Restore local tools
+        run: dotnet tool restore
+
+      - name: Apply database migrations
+        run: dotnet ef database update --project src/RegionScope --startup-project src/RegionScope
+        env:
+          ConnectionStrings__RegionScope: Host=localhost;Port=5432;Database=regionscope;Username=postgres;Password=postgres
+
+      - name: Build
+        run: dotnet build RegionScope.sln --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test RegionScope.sln --no-build --configuration Release --verbosity normal
