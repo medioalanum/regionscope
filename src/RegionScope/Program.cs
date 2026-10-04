@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using RegionScope.Clients;
 using RegionScope.Data;
+using RegionScope.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,6 +9,13 @@ builder.Services.AddHealthChecks()
     .AddDbContextCheck<RegionScopeDbContext>();
 builder.Services.AddDbContext<RegionScopeDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("RegionScope")));
+builder.Services.AddHttpClient<EurostatClient>(client =>
+{
+    client.BaseAddress = new Uri("https://ec.europa.eu/eurostat/api/");
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("RegionScope/1.0");
+});
+builder.Services.AddScoped<IndicatorImportService>();
 
 var app = builder.Build();
 
@@ -52,6 +61,24 @@ app.MapGet("/api/countries/{code}/indicators/{indicator}", async (
         .ToListAsync(cancellationToken);
 
     return Results.Ok(observations);
+});
+
+app.MapPost("/api/admin/import", async (
+    HttpRequest request,
+    IConfiguration configuration,
+    IndicatorImportService importer,
+    CancellationToken cancellationToken) =>
+{
+    var configuredKey = configuration["Import:ApiKey"];
+    if (string.IsNullOrWhiteSpace(configuredKey)
+        || !request.Headers.TryGetValue("X-Import-Key", out var providedKey)
+        || providedKey != configuredKey)
+    {
+        return Results.NotFound();
+    }
+
+    var imported = await importer.ImportAsync(cancellationToken);
+    return Results.Ok(new { imported });
 });
 
 app.Run();
