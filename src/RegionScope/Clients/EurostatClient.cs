@@ -28,7 +28,7 @@ public sealed class EurostatClient(HttpClient httpClient, ILogger<EurostatClient
     private IReadOnlyCollection<EurostatObservation> Parse(JsonElement root)
     {
         var ids = root.GetProperty("id").EnumerateArray().Select(item => item.GetString()!).ToArray();
-        var sizes = root.GetProperty("size").EnumerateArray().Select(item => item.GetInt32()).ToArray();
+        var sizes = ReadSizes(root.GetProperty("size"), ids);
         var valueElement = root.GetProperty("value");
         var values = valueElement.ValueKind == JsonValueKind.Array
             ? valueElement.EnumerateArray().Select((value, index) => (Index: index, Value: value))
@@ -75,6 +75,13 @@ public sealed class EurostatClient(HttpClient httpClient, ILogger<EurostatClient
         return index.ValueKind == JsonValueKind.Object
             ? index.EnumerateObject().OrderBy(item => item.Value.GetInt32()).Select(item => item.Name).ToArray()
             : index.EnumerateArray().Select(item => item.GetString()!).ToArray();
+    }
+
+    private static int[] ReadSizes(JsonElement size, IReadOnlyList<string> ids)
+    {
+        return size.ValueKind == JsonValueKind.Array
+            ? size.EnumerateArray().Select(item => item.GetInt32()).ToArray()
+            : ids.Select(id => size.GetProperty(id).GetInt32()).ToArray();
     }
 
     private static int[] DecodeIndex(int flatIndex, IReadOnlyList<int> sizes)
